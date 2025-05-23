@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fleetman-app        # Application Name
+  namespace: argocd
+spec:
+  project: default        # ArgoCD Project Name (Optional - if using project)
+
+  source:
+    repoURL: https://github.com/mabusaa/argocd-example-apps.git  # Git Repository
+    targetRevision: master                                       # Git Branch or Tag
+    path: helm-guestbook                                         # Path inside repo
+
+    helm:                        # Helm Specific Configurations
+      releaseName: guestbook
+      parameters:
+        - name: service.type     # Overriding value from values.yaml
+          value: NodePort
+        - name: service.port
+          value: "30080"
+
+  destination:
+    server: https://kubernetes.default.svc    # Cluster (default: in-cluster)
+    namespace: dev                            # Namespace to deploy
+
+  syncPolicy:
+    automated:             # Enable Auto-Sync from Git
+      prune: true          # Delete resources not in Git
+      selfHeal: true       # Auto-fix drift between live and Git
+    syncOptions:
+      - CreateNamespace=true   # Auto-create namespace if not exist

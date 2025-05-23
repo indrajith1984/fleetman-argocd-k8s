@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fleetman-mongodb
+spec:
+  minReadySeconds: 50
+  ordinals:
+    start: 0
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      purpose: persist-data
+      tier: prod      
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        purpose: persist-data
+        tier: prod
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key:
+                    operator:
+                    values:      
+      containers:
+        - name: mongo
+          image: mongo:3.6.5-jessie
+          imagePullPolicy: IfNotPresent
+          # env:
+          #   - name: MONGO_INITDB_ROOT_USERNAME
+          #     valueFrom:
+          #       secretKeyRef:
+          #         key: DB_USERNAME
+          #         name: mongodb-secret
+
+          #   - name: MONGO_INITDB_ROOT_PASSWORD
+          #     valueFrom:
+          #       secretKeyRef:
+          #         key: DB_PASSWORD
+          #         name: mongodb-secret
+          ports:
+            - containerPort: 27017
+              protocol: TCP
+              name: mongodb-port
+              
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 60
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 60          
+          volumeMounts:
+            - name: mongo-pvc
+              mountPath: /data/db
+
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: mongo-pvc
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: resizable-sc
+        volumeMode: Filesystem
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fleetman-mongodb
+spec:
+  # clusterIP: 10.100.0.4
+  # clusterIPs:
+  #   - 10.100.0.4
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+    # - IPv6
+  ipFamilyPolicy: PreferDualStack  
+  selector:
+      purpose: persist-data
+      tier: prod   
+  ports:
+    - name: mongodb-port
+      targetPort: 27017
+      port: 27017
+      protocol: TCP
+  type: ClusterIP
+
+
+          
+

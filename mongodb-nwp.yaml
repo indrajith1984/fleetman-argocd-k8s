@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-nwp
+spec:
+  podSelector:
+    matchLabels:
+      purpose: persist-data
+      tier: prod
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: fleetman-tracker
+              tier: prod
+              ver: "2"
+      ports:
+        - port: 27017
+          protocol: TCP             

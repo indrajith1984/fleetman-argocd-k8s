@@ -12,17 +12,17 @@ spec:
     - IPv4
     # - IPv6
   ipFamilyPolicy: PreferDualStack
-  type: NodePort
+  type: ClusterIP
   selector:
     app: fleetman-queue
     tier: prod
   ports:
     # admin access port
-    - name: admin-port
-      port: 8161
-      targetPort: admin-port
-      nodePort: 30061
-      protocol: TCP
+    # - name: admin-port
+    #   port: 8161
+    #   targetPort: admin-port
+    #   nodePort: 30061
+    #   protocol: TCP
     # Internal access port
     - name: internal-port
       port: 61616

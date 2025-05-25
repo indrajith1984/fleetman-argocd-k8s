@@ -1,327 +1,327 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleetman-queue
-spec:
-  minReadySeconds: 30
-  progressDeadlineSeconds: 200
-  replicas: 1
-  revisionHistoryLimit: 5
-  selector:
-    matchLabels:
-      app: fleetman-queue
-      tier: prod
-      ver: "2"
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        app: fleetman-queue
-        tier: prod
-        ver: "2"
-    spec:
-      #activeDeadlineSeconds: 100
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key:
-                    operator:
-                    values:
-      #automountServiceAccountToken:
-      imagePullSecrets:
-        - name: regcred
-      restartPolicy: Always
-      priorityClassName: fleetman-priority
-      terminationGracePeriodSeconds: 60
-      #tolerations:
-      #topologySpreadConstraints:
-      #volumes:            
-      containers:
-        - name: main
-          image: uriyapraba/k8s-fleetman-queue:release2
-          imagePullPolicy: IfNotPresent
-          livenessProbe:
-            tcpSocket:
-              port: 61616
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            successThreshold: 1
-            terminationGracePeriodSeconds: 60
-            timeoutSeconds: 60
-          readinessProbe:
-            tcpSocket:
-              port: 61616
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            successThreshold: 1
-            # terminationGracePeriodSeconds: 60
-            timeoutSeconds: 60     
-          ports:
-            - containerPort: 8161
-              protocol: TCP
-              name: admin-port
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fleetman-queue
+# spec:
+#   minReadySeconds: 30
+#   progressDeadlineSeconds: 200
+#   replicas: 1
+#   revisionHistoryLimit: 5
+#   selector:
+#     matchLabels:
+#       app: fleetman-queue
+#       tier: prod
+#       ver: "2"
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: fleetman-queue
+#         tier: prod
+#         ver: "2"
+#     spec:
+#       #activeDeadlineSeconds: 100
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#               - matchExpressions:
+#                   - key:
+#                     operator:
+#                     values:
+#       #automountServiceAccountToken:
+#       imagePullSecrets:
+#         - name: regcred
+#       restartPolicy: Always
+#       priorityClassName: fleetman-priority
+#       terminationGracePeriodSeconds: 60
+#       #tolerations:
+#       #topologySpreadConstraints:
+#       #volumes:            
+#       containers:
+#         - name: main
+#           image: uriyapraba/k8s-fleetman-queue:release2
+#           imagePullPolicy: IfNotPresent
+#           livenessProbe:
+#             tcpSocket:
+#               port: 61616
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             successThreshold: 1
+#             terminationGracePeriodSeconds: 60
+#             timeoutSeconds: 60
+#           readinessProbe:
+#             tcpSocket:
+#               port: 61616
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             successThreshold: 1
+#             # terminationGracePeriodSeconds: 60
+#             timeoutSeconds: 60     
+#           ports:
+#             - containerPort: 8161
+#               protocol: TCP
+#               name: admin-port
 
-            - containerPort: 61616
-              protocol: TCP
-              name: queue-port            
-          resources:
-            limits:
-              cpu: 500m
-              memory: 500Mi
-            requests:
-              cpu: 500m
-              memory: 500Mi            
-          #terminationMessagePath: /var/log/
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleetman-simulator
-spec:
-  minReadySeconds: 100
-  progressDeadlineSeconds: 200
-  replicas: 1
-  revisionHistoryLimit: 5
-  selector:
-    matchLabels:
-      app: fleetman-simulator
-      tier: prod
-      ver: "2"
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        app: fleetman-simulator
-        tier: prod
-        ver: "2"
-    spec:
-      #activeDeadlineSeconds: 100
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key:
-                    operator:
-                    values:      
-      #automountServiceAccountToken:
-      # imagePullSecrets:
-      #   - name: regcred
-      restartPolicy: Always
-      priorityClassName: fleetman-priority
-      terminationGracePeriodSeconds: 60
-      #tolerations:
-      #topologySpreadConstraints:
-      #volumes:
-      initContainers:
-        - name: wait-for-fleetman-queue
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - "-c"
-            - |
-              echo "Waiting for fleetman-queue:61616 to be reachable..."
-              until nc -z fleetman-queue 61616; do
-                echo "Still waiting..."
-                sleep 5
-              done
-              echo "Service is reachable. Continuing..."      
-      containers:
-        - name: main
-          image: uriyapraba/k8s-fleetman-position-simulator:release2
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              valueFrom:
-                configMapKeyRef:
-                  name: fleetman-webangular-cm
-                  key: SPRING_PROFILES_ACTIVE
-          resources:
-            limits:
-              cpu: 500m
-              memory: 500Mi
-            requests:
-              cpu: 500m
-              memory: 500Mi                   
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleetman-tracker
-spec:
-  minReadySeconds: 100
-  progressDeadlineSeconds: 200
-  replicas: 1
-  revisionHistoryLimit: 5
-  selector:
-    matchLabels:
-      app: fleetman-tracker
-      tier: prod
-      ver: "2"
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        app: fleetman-tracker
-        tier: prod
-        ver: "2"
-    spec:
-      #activeDeadlineSeconds: 100
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key:
-                    operator:
-                    values:
-        podAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    purpose: persist-data
-                    tier: prod
-                topologyKey: kubernetes.io/hostname
-              weight: 80                      
-      #automountServiceAccountToken:
-      # imagePullSecrets:
-      #   - name: regcred
-      restartPolicy: Always
-      priorityClassName: fleetman-priority
-      terminationGracePeriodSeconds: 60
-      #tolerations:
-      #topologySpreadConstraints:
-      #volumes:
-      initContainers:
-        - name: wait-for-fleetman-queue
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - "-c"
-            - |
-              echo "Waiting for fleetman-queue:61616 to be reachable..."
-              until nc -z fleetman-queue 61616; do
-                echo "Still waiting..."
-                sleep 5
-              done
-              echo "Service is reachable. Continuing..."      
-      containers:
-        - name: main
-          image: richardchesterwood/k8s-fleetman-position-tracker:release3
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              valueFrom:
-                configMapKeyRef:
-                  name: fleetman-webangular-cm
-                  key: SPRING_PROFILES_ACTIVE
-          # This port is open for API-Gateway
-          ports:
-            - containerPort: 8080
-              protocol: TCP
-              name: tracker-port
-          resources:
-            limits:
-              cpu: 500m
-              memory: 500Mi
-            requests:
-              cpu: 500m
-              memory: 500Mi                    
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleetman-apigateway
-spec:
-  minReadySeconds: 100
-  progressDeadlineSeconds: 200
-  replicas: 1
-  revisionHistoryLimit: 5
-  selector:
-    matchLabels:
-      app: fleetman-apigateway
-      tier: prod
-      ver: "2"
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        app: fleetman-apigateway
-        tier: prod
-        ver: "2"
-    spec:
-      #activeDeadlineSeconds: 100
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key:
-                    operator:
-                    values:      
-      #automountServiceAccountToken:
-      # imagePullSecrets:
-      #   - name: regcred
-      restartPolicy: Always
-      priorityClassName: fleetman-priority
-      terminationGracePeriodSeconds: 60
-      #tolerations:
-      #topologySpreadConstraints:
-      #volumes:
-      initContainers:
-        - name: wait-for-fleetman-tracker
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - "-c"
-            - |
-              echo "Waiting for fleetman-position-tracker:8080 to be reachable..."
-              until nc -z fleetman-position-tracker 8080; do
-                echo "Still waiting..."
-                sleep 5
-              done
-              echo "Service is reachable. Continuing..."        
-      containers:
-        - name: main
-          image: uriyapraba/k8s-fleetman-api-gateway:release2
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              valueFrom:
-                configMapKeyRef:
-                  name: fleetman-webangular-cm
-                  key: SPRING_PROFILES_ACTIVE
-          ports:
-            - containerPort: 8080
-              protocol: TCP
-              name: apigateway-port
-          resources:
-            limits:
-              cpu: 500m
-              memory: 1Gi
-            requests:
-              cpu: 500m
-              memory: 500Mi             
----
+#             - containerPort: 61616
+#               protocol: TCP
+#               name: queue-port            
+#           resources:
+#             limits:
+#               cpu: 500m
+#               memory: 500Mi
+#             requests:
+#               cpu: 500m
+#               memory: 500Mi            
+#           #terminationMessagePath: /var/log/
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fleetman-simulator
+# spec:
+#   minReadySeconds: 100
+#   progressDeadlineSeconds: 200
+#   replicas: 1
+#   revisionHistoryLimit: 5
+#   selector:
+#     matchLabels:
+#       app: fleetman-simulator
+#       tier: prod
+#       ver: "2"
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: fleetman-simulator
+#         tier: prod
+#         ver: "2"
+#     spec:
+#       #activeDeadlineSeconds: 100
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#               - matchExpressions:
+#                   - key:
+#                     operator:
+#                     values:      
+#       #automountServiceAccountToken:
+#       # imagePullSecrets:
+#       #   - name: regcred
+#       restartPolicy: Always
+#       priorityClassName: fleetman-priority
+#       terminationGracePeriodSeconds: 60
+#       #tolerations:
+#       #topologySpreadConstraints:
+#       #volumes:
+#       initContainers:
+#         - name: wait-for-fleetman-queue
+#           image: busybox:1.36
+#           command:
+#             - /bin/sh
+#             - "-c"
+#             - |
+#               echo "Waiting for fleetman-queue:61616 to be reachable..."
+#               until nc -z fleetman-queue 61616; do
+#                 echo "Still waiting..."
+#                 sleep 5
+#               done
+#               echo "Service is reachable. Continuing..."      
+#       containers:
+#         - name: main
+#           image: uriyapraba/k8s-fleetman-position-simulator:release2
+#           imagePullPolicy: IfNotPresent
+#           env:
+#             - name: SPRING_PROFILES_ACTIVE
+#               valueFrom:
+#                 configMapKeyRef:
+#                   name: fleetman-webangular-cm
+#                   key: SPRING_PROFILES_ACTIVE
+#           resources:
+#             limits:
+#               cpu: 500m
+#               memory: 500Mi
+#             requests:
+#               cpu: 500m
+#               memory: 500Mi                   
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fleetman-tracker
+# spec:
+#   minReadySeconds: 100
+#   progressDeadlineSeconds: 200
+#   replicas: 1
+#   revisionHistoryLimit: 5
+#   selector:
+#     matchLabels:
+#       app: fleetman-tracker
+#       tier: prod
+#       ver: "2"
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: fleetman-tracker
+#         tier: prod
+#         ver: "2"
+#     spec:
+#       #activeDeadlineSeconds: 100
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#               - matchExpressions:
+#                   - key:
+#                     operator:
+#                     values:
+#         podAffinity:
+#           preferredDuringSchedulingIgnoredDuringExecution:
+#             - podAffinityTerm:
+#                 labelSelector:
+#                   matchLabels:
+#                     purpose: persist-data
+#                     tier: prod
+#                 topologyKey: kubernetes.io/hostname
+#               weight: 80                      
+#       #automountServiceAccountToken:
+#       # imagePullSecrets:
+#       #   - name: regcred
+#       restartPolicy: Always
+#       priorityClassName: fleetman-priority
+#       terminationGracePeriodSeconds: 60
+#       #tolerations:
+#       #topologySpreadConstraints:
+#       #volumes:
+#       initContainers:
+#         - name: wait-for-fleetman-queue
+#           image: busybox:1.36
+#           command:
+#             - /bin/sh
+#             - "-c"
+#             - |
+#               echo "Waiting for fleetman-queue:61616 to be reachable..."
+#               until nc -z fleetman-queue 61616; do
+#                 echo "Still waiting..."
+#                 sleep 5
+#               done
+#               echo "Service is reachable. Continuing..."      
+#       containers:
+#         - name: main
+#           image: richardchesterwood/k8s-fleetman-position-tracker:release3
+#           imagePullPolicy: IfNotPresent
+#           env:
+#             - name: SPRING_PROFILES_ACTIVE
+#               valueFrom:
+#                 configMapKeyRef:
+#                   name: fleetman-webangular-cm
+#                   key: SPRING_PROFILES_ACTIVE
+#           # This port is open for API-Gateway
+#           ports:
+#             - containerPort: 8080
+#               protocol: TCP
+#               name: tracker-port
+#           resources:
+#             limits:
+#               cpu: 500m
+#               memory: 500Mi
+#             requests:
+#               cpu: 500m
+#               memory: 500Mi                    
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fleetman-apigateway
+# spec:
+#   minReadySeconds: 100
+#   progressDeadlineSeconds: 200
+#   replicas: 1
+#   revisionHistoryLimit: 5
+#   selector:
+#     matchLabels:
+#       app: fleetman-apigateway
+#       tier: prod
+#       ver: "2"
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: fleetman-apigateway
+#         tier: prod
+#         ver: "2"
+#     spec:
+#       #activeDeadlineSeconds: 100
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#               - matchExpressions:
+#                   - key:
+#                     operator:
+#                     values:      
+#       #automountServiceAccountToken:
+#       # imagePullSecrets:
+#       #   - name: regcred
+#       restartPolicy: Always
+#       priorityClassName: fleetman-priority
+#       terminationGracePeriodSeconds: 60
+#       #tolerations:
+#       #topologySpreadConstraints:
+#       #volumes:
+#       initContainers:
+#         - name: wait-for-fleetman-tracker
+#           image: busybox:1.36
+#           command:
+#             - /bin/sh
+#             - "-c"
+#             - |
+#               echo "Waiting for fleetman-position-tracker:8080 to be reachable..."
+#               until nc -z fleetman-position-tracker 8080; do
+#                 echo "Still waiting..."
+#                 sleep 5
+#               done
+#               echo "Service is reachable. Continuing..."        
+#       containers:
+#         - name: main
+#           image: uriyapraba/k8s-fleetman-api-gateway:release2
+#           imagePullPolicy: IfNotPresent
+#           env:
+#             - name: SPRING_PROFILES_ACTIVE
+#               valueFrom:
+#                 configMapKeyRef:
+#                   name: fleetman-webangular-cm
+#                   key: SPRING_PROFILES_ACTIVE
+#           ports:
+#             - containerPort: 8080
+#               protocol: TCP
+#               name: apigateway-port
+#           resources:
+#             limits:
+#               cpu: 500m
+#               memory: 1Gi
+#             requests:
+#               cpu: 500m
+#               memory: 500Mi             
+# ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/indrajith1984/fleetman-argocd-k8s.git # Git Repository
     targetRevision: master                                       # Git Branch or Tag
-    path: .                                       # Path inside repo
+    path: k8s-manifest                                      # Path inside repo
     directory:
       recurse: true
     
